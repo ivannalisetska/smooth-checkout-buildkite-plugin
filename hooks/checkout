@@ -103,26 +103,25 @@ cd "$BUILDKITE_BUILD_CHECKOUT_PATH"
 
 log_section ":key: Configuring SSH"
 
-# Define the SSH hosts dynamically
+# Define SSH hosts dynamically
 SSH_HOSTS=("github.com" "bitbucket.org" "gitlab.com")
 
-# Temporary array to hold fingerprints
-SSH_FINGERPRINTS=()
+# Ensure ~/.ssh/known_hosts exists
+mkdir -p ~/.ssh
+touch ~/.ssh/known_hosts
+chmod 600 ~/.ssh/known_hosts
 
-# Dynamically fetch fingerprints for each host
+# Add SSH hosts dynamically
 for host in "${SSH_HOSTS[@]}"; do
   fingerprint=$(ssh-keyscan -t rsa "$host" 2>/dev/null | ssh-keygen -lf - | awk '{print $2":"$3}')
+  
   if [[ -n $fingerprint ]]; then
-    SSH_FINGERPRINTS+=("$fingerprint")
+    echo "$fingerprint $host" >> ~/.ssh/known_hosts
+    echo "INFO: Added $host to known_hosts with fingerprint $fingerprint"
   else
-    echo "Error: Unable to fetch fingerprint for $host" >&2
+    echo "ERROR: Unable to fetch fingerprint for $host" >&2
     exit 1
   fi
-done
-
-# Add SSH hosts and their dynamically fetched fingerprints
-for i in "${!SSH_HOSTS[@]}"; do
-  add_ssh_host "${SSH_HOSTS[$i]}" "${SSH_FINGERPRINTS[$i]}"
 done
 
 log_section ":git: Starting repository checkout"
